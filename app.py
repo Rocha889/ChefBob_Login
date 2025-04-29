@@ -1,15 +1,17 @@
 import streamlit as st
-import gspread
+import json
 from oauth2client.service_account import ServiceAccountCredentials
+import gspread
 
-# CONFIGURAR ACESSO AO GOOGLE SHEETS
+# Conectar com Google Sheets via secrets
 def conectar_planilha():
     escopo = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    credenciais = ServiceAccountCredentials.from_json_keyfile_name("planilha-streamlit-usuario-8e61e8ad663d.json", escopo)
+    credenciais_dict = st.secrets["gcp_service_account"]
+    credenciais_json = json.loads(json.dumps(credenciais_dict))
+    credenciais = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_json, escopo)
     cliente = gspread.authorize(credenciais)
-    planilha = cliente.open_by_key("1Lotjwh6m-6xTUgRew7pEEzOqNHzrY2R1744Eqix_vmk")
-    aba = planilha.sheet1
-    return aba
+    planilha = cliente.open_by_key("1Lotjwh6m-6xTUgRew7pEEzOqNHzrY2R1744Eqix_vmk")  # ID da sua planilha
+    return planilha.sheet1
 
 # LER TODOS OS USUÁRIOS
 def obter_usuarios():
@@ -62,4 +64,15 @@ elif menu == "Cadastro":
 
 elif menu == "Recuperar Senha":
     st.subheader("Recuperar senha por e-mail")
-    email_digitado =_
+    email_digitado = st.text_input("Digite seu e-mail cadastrado")
+
+    if st.button("Recuperar"):
+        usuarios = obter_usuarios()
+        encontrado = False
+        for u in usuarios:
+            if u['email'] == email_digitado:
+                st.info(f"Usuário: **{u['usuario']}**\n\nSenha: **{u['senha']}**")
+                encontrado = True
+                break
+        if not encontrado:
+            st.error("❌ E-mail não encontrado.")
