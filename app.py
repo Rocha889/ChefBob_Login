@@ -45,6 +45,16 @@ def cadastrar_usuario(usuario, senha, email):
     aba.append_row([usuario, senha, email])
 
 # ----------------------------
+# Recuperar senha por e-mail
+# ----------------------------
+def recuperar_senha_por_email(email):
+    usuarios = obter_usuarios()
+    for u in usuarios:
+        if u["email"] == email:
+            return u["senha"]
+    return None
+
+# ----------------------------
 # Interface do Streamlit
 # ----------------------------
 def main():
@@ -52,7 +62,7 @@ def main():
 
     st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>ChefBob Dashboards</h1>", unsafe_allow_html=True)
 
-    menu = st.radio("Escolha uma opção:", ["Login", "Cadastrar novo usuário"])
+    menu = st.radio("Escolha uma opção:", ["Login", "Cadastrar novo usuário", "Recuperar senha"])
 
     if menu == "Login":
         st.subheader("Login de Usuário")
@@ -79,6 +89,17 @@ def main():
             else:
                 cadastrar_usuario(novo_usuario, nova_senha, email)
                 st.success("Usuário cadastrado com sucesso!")
+
+    elif menu == "Recuperar senha":
+        st.subheader("Recuperação de Senha")
+        email = st.text_input("Digite seu e-mail cadastrado")
+
+        if st.button("Recuperar"):
+            senha = recuperar_senha_por_email(email)
+            if senha:
+                st.success(f"A sua senha é: {senha}")
+            else:
+                st.error("E-mail não encontrado.")
 
 if __name__ == "__main__":
     main()
