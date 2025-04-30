@@ -1,78 +1,84 @@
 import streamlit as st
-import json
-from oauth2client.service_account import ServiceAccountCredentials
 import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Conectar com Google Sheets via secrets
-def conectar_planilha():
-    escopo = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# ----------------------------
+# Conexão com o Google Sheets
+# ----------------------------
+def conectar_planilha(nome_aba):
+    escopos = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     credenciais_dict = st.secrets["gcp_service_account"]
-    credenciais_json = json.loads(json.dumps(credenciais_dict))
-    credenciais = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_json, escopo)
+    credenciais = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_dict, escopos)
     cliente = gspread.authorize(credenciais)
-    planilha = cliente.open_by_key("1Lotjwh6m-6xTUgRew7pEEzOqNHzrY2R1744Eqix_vmk")  # ID da sua planilha
-    return planilha.sheet1
+    planilha = cliente.open("NOME_DA_SUA_PLANILHA")  # Substitua pelo nome real
+    return planilha.worksheet(nome_aba)
 
-# LER TODOS OS USUÁRIOS
+# ----------------------------
+# Obter usuários da aba
+# ----------------------------
 def obter_usuarios():
-    aba = conectar_planilha()
-    dados = aba.get_all_records()
-    return dados
+    aba = conectar_planilha("usuarios")
+    return aba.get_all_records()
 
-# INSERIR NOVO USUÁRIO
+# ----------------------------
+# Verificar login
+# ----------------------------
+def autenticar(usuario, senha):
+    usuarios = obter_usuarios()
+    for u in usuarios:
+        if u["usuario"] == usuario and u["senha"] == senha:
+            return True
+    return False
+
+# ----------------------------
+# Verificar se usuário já existe
+# ----------------------------
+def usuario_existe(novo_usuario):
+    usuarios = obter_usuarios()
+    return any(u["usuario"] == novo_usuario for u in usuarios)
+
+# ----------------------------
+# Cadastrar novo usuário
+# ----------------------------
 def cadastrar_usuario(usuario, senha, email):
-    aba = conectar_planilha()
+    aba = conectar_planilha("usuarios")
     aba.append_row([usuario, senha, email])
 
-# INTERFACE STREAMLIT
-st.set_page_config(page_title="Sistema de Acesso", layout="centered")
-st.title("🔐 Sistema de Acesso")
+# ----------------------------
+# Interface do Streamlit
+# ----------------------------
+def main():
+    st.set_page_config(page_title="ChefBob Login", page_icon="🍽️", layout="centered")
 
-menu = st.sidebar.radio("Menu", ["Login", "Cadastro", "Recuperar Senha"])
+    st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>ChefBob Dashboards</h1>", unsafe_allow_html=True)
 
-if menu == "Login":
-    st.subheader("Fazer Login")
-    user = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
+    menu = st.radio("Escolha uma opção:", ["Login", "Cadastrar novo usuário"])
 
-    if st.button("Entrar"):
-        usuarios = obter_usuarios()
-        encontrado = False
-        for linha in usuarios:
-            if linha['usuario'] == user and linha['senha'] == senha:
-                st.success(f"Bem-vindo, {user}!")
-                st.markdown("[👉 Acessar Dashboard Power BI](https://app.powerbi.com/YOUR-LINK-AQUI)", unsafe_allow_html=True)
-                encontrado = True
-                break
-        if not encontrado:
-            st.error("Usuário ou senha incorretos.")
+    if menu == "Login":
+        st.subheader("Login de Usuário")
+        usuario = st.text_input("Usuário")
+        senha = st.text_input("Senha", type="password")
 
-elif menu == "Cadastro":
-    st.subheader("Cadastrar novo usuário")
-    novo_user = st.text_input("Novo usuário")
-    nova_senha = st.text_input("Nova senha", type="password")
-    novo_email = st.text_input("E-mail")
+        if st.button("Entrar"):
+            if autenticar(usuario, senha):
+                st.success(f"Bem-vindo(a), {usuario}!")
+                st.balloons()
+                # Aqui você pode redirecionar para a página dos dashboards
+            else:
+                st.error("Usuário ou senha inválidos.")
 
-    if st.button("Cadastrar"):
-        usuarios = obter_usuarios()
-        ja_existe = any(u['usuario'] == novo_user for u in usuarios)
-        if ja_existe:
-            st.warning("⚠️ Esse usuário já está cadastrado.")
-        else:
-            cadastrar_usuario(novo_user, nova_senha, novo_email)
-            st.success("✅ Cadastro realizado com sucesso!")
+    elif menu == "Cadastrar novo usuário":
+        st.subheader("Cadastro")
+        novo_usuario = st.text_input("Novo usuário")
+        nova_senha = st.text_input("Nova senha", type="password")
+        email = st.text_input("E-mail")
 
-elif menu == "Recuperar Senha":
-    st.subheader("Recuperar senha por e-mail")
-    email_digitado = st.text_input("Digite seu e-mail cadastrado")
+        if st.button("Cadastrar"):
+            if usuario_existe(novo_usuario):
+                st.warning("Esse usuário já existe. Tente outro nome.")
+            else:
+                cadastrar_usuario(novo_usuario, nova_senha, email)
+                st.success("Usuário cadastrado com sucesso!")
 
-    if st.button("Recuperar"):
-        usuarios = obter_usuarios()
-        encontrado = False
-        for u in usuarios:
-            if u['email'] == email_digitado:
-                st.info(f"Usuário: **{u['usuario']}**\n\nSenha: **{u['senha']}**")
-                encontrado = True
-                break
-        if not encontrado:
-            st.error("❌ E-mail não encontrado.")
+if __name__ == "__main__":
+    main()
